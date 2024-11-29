@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  order-service:
+    build:
+      context: ./delivery
+    ports:
+      - "8010:8010"
+    environment:
+      - DATABASE_URL=postgresql://postgres:123456@order-db:5432/orders_delivery
+      - RABBITMQ_URL=amqp://51.250.26.59:5672
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - backend
+
+  courier-service:
+    build:
+      context: ./courier
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:123456@courier-db:5432/courier_service
+      - RABBITMQ_URL=amqp://51.250.26.59:5672
+    depends_on:
+      courier-db:
+        condition: service_healthy
+    networks:
+      - backend
+
+  order-db:
+    container_name: order-db
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: orders_delivery
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+
+  courier-db:
+    container_name: courier-db
+    image: postgres:13
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: courier_service
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - courier-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  order-db-data:
+    driver: local
+  courier-db-data:
+    driver: local

@@ -5,7 +5,7 @@ services:
     build:
       context: ./delivery
     ports:
-      - "8010:8010"
+      - "8011:8011"
     environment:
       - DATABASE_URL=postgresql://postgres:123456@order-db:5432/orders_delivery
       - RABBITMQ_URL=amqp://51.250.26.59:5672

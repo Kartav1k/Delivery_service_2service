@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from enum import Enum as PyEnum
-from pydantic import BaseModel
+
 
 Base = declarative_base()
 
@@ -28,12 +28,3 @@ class Orders(Base):
     status = Column(Enum(DeliveryStatuses), default=DeliveryStatuses.created)
     courier_id = Column(Integer)
     is_pickup = Column(Boolean, default=False)
-
-
-class DeliveryCreate(BaseModel):
-    customer: str
-    address: str
-    is_pickup: bool = False
-
-    class Config:
-        from_attributes = True

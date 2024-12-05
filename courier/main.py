@@ -1,6 +1,8 @@
 import threading
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
+
+from rabbitmq import listen_queue_start_delivery
 from models_courier import DeliveryMan, DeliveryManStatuses, Base
 from database_courier import SessionLocal, engine
 import pika
@@ -8,7 +10,7 @@ import json
 
 app = FastAPI()
 
-#Base.metadata.drop_all(bind=engine)
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 
@@ -17,7 +19,7 @@ def initialize_delivery_man(db: Session):
     predefined_delivery_men = [
         DeliveryMan(fio_courier="Иван Иванов", status=DeliveryManStatuses.available),
         DeliveryMan(fio_courier="Петр Петров", status=DeliveryManStatuses.available),
-        DeliveryMan(fio_courier="Михаил Михайлов", status=DeliveryManStatuses.off_shift),
+        DeliveryMan(fio_courier="Михаил Михайлов", status=DeliveryManStatuses.not_working),
     ]
     for delivery_man in predefined_delivery_men:
         db.add(delivery_man)
@@ -32,14 +34,14 @@ def get_db():
     finally:
         db.close()
 
-def get_rabbitmq_connection():
+'''def get_rabbitmq_connection():
     return pika.BlockingConnection(pika.ConnectionParameters(
         host='51.250.26.59',
         port=5672,
         credentials=pika.PlainCredentials('guest', 'guest123')
-    ))
+    ))'''
 
-def on_order_created(ch, method, properties, body):
+'''def on_order_created(ch, method, properties, body):
     message = json.loads(body)
     order_id = message["order_id"]
     print(f"Получен заказ {order_id}")
@@ -53,9 +55,9 @@ def on_order_created(ch, method, properties, body):
 
         db.close()
     else:
-        print("Нет доступных курьеров :(")
+        print("Нет доступных курьеров :(")'''
 
-def send_courier_assigned_message(order_id: int, courier_id: int):
+'''def send_courier_assigned_message(order_id: int, courier_id: int):
     connection = get_rabbitmq_connection()
     channel = connection.channel()
     channel.queue_declare(queue='courier_assigned', durable=True)
@@ -79,26 +81,27 @@ def start_listening():
     channel.basic_consume(queue='savitskiy_order_created', on_message_callback=on_order_created)
 
     print("Ожидание заказов...")
-    channel.start_consuming()
+    channel.start_consuming()'''
 
-import threading
-order_listener_thread = threading.Thread(target=start_listening)
-order_listener_thread.start()
+@app.on_event("startup")
+async def startup_event():
+    listener_thread = threading.Thread(target=listen_queue_start_delivery, daemon=True)
+    listener_thread.start()
 
 @app.get("/couriers")
-def get_couriers(db: Session = Depends(get_db)):
+async def get_couriers(db: Session = Depends(get_db)):
     couriers = db.query(DeliveryMan).all()
     return couriers
 
 @app.get("/courier/{id}")
-def get_courier(id: int, db: Session = Depends(get_db)):
+async def get_courier(id: int, db: Session = Depends(get_db)):
     courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
     if not courier:
         raise HTTPException(status_code=404, detail="Курьер не найден")
     return courier
 
 @app.patch("/courier/{id}/activate")
-def activate_courier(id: int, db: Session = Depends(get_db)):
+async def activate_courier(id: int, db: Session = Depends(get_db)):
     courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
     if not courier:
         raise HTTPException(status_code=404, detail="Курьер не найден")
@@ -112,7 +115,7 @@ def activate_courier(id: int, db: Session = Depends(get_db)):
     return {"message": f"Курьер {id} готов вкалывать"}
 
 @app.patch("/courier/{id}/deactivate")
-def deactivate_courier(id: int, db: Session = Depends(get_db)):
+async def deactivate_courier(id: int, db: Session = Depends(get_db)):
     courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
     if not courier:
         raise HTTPException(status_code=404, detail="Курьер не найден")

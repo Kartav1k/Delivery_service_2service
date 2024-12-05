@@ -65,7 +65,7 @@ def listen_queue_started_delivery():
     print("Log: Reading a message from a queue started_delivery_queue_savitskiy", flush=True)
     channel.start_consuming()
 
-# Отправка сигнала курьеру в очередь completed_delivery_queue_savitskiy что он может быть свободен
+# Отправка сигнала курьеру в очередь completed_delivery_queue_savitskiy что он может быть свободен(временно)
 
 def completed_delivery(courier_id: int):
     credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)

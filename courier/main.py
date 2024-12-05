@@ -38,33 +38,33 @@ async def get_couriers(db: Session = Depends(get_db)):
 async def get_courier(id: int, db: Session = Depends(get_db)):
     courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
     if not courier:
-        raise HTTPException(status_code=404, detail="Курьер не найден")
+        raise HTTPException(status_code=404, detail="Courier was not found")
     return courier
 
 @app.patch("/courier/{id}/activate")
 async def activate_courier(id: int, db: Session = Depends(get_db)):
     courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
     if not courier:
-        raise HTTPException(status_code=404, detail="Курьер не найден")
+        raise HTTPException(status_code=404, detail="Courier was not found")
     if courier.status == DeliveryManStatuses.busy or courier.status == DeliveryManStatuses.available:
         raise HTTPException(
             status_code=400,
-            detail="Вы не можете начать смену, вы уже работаете"
+            detail="You can't start a shift, you're already working"
         )
     courier.status = DeliveryManStatuses.available
     db.commit()
-    return {"message": f"Курьер {id} готов вкалывать"}
+    return {"message": f"Courier {id} is ready to work hard"}
 
 @app.patch("/courier/{id}/deactivate")
 async def deactivate_courier(id: int, db: Session = Depends(get_db)):
     courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
     if not courier:
-        raise HTTPException(status_code=404, detail="Курьер не найден")
+        raise HTTPException(status_code=404, detail="Courier was not found")
     if courier.status == DeliveryManStatuses.busy:
         raise HTTPException(
             status_code=400,
-            detail="Вы не можете закончить смену, пока не завершите заказ!"
+            detail="You can't finish your shift until you complete the order!"
         )
     courier.is_active = False
     db.commit()
-    return {"message": f"Курьер {id} закончил смену"}
+    return {"message": f"Courier {id} has finished his shift"}

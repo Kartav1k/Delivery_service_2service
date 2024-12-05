@@ -1,10 +1,7 @@
 import json
-import random
-
 import pika
 
-from models_courier import DeliveryMan, DeliveryManStatuses
-from database_courier import SessionLocal
+from utility import assign_order_to_courier, free_courier
 
 RABBITMQ_HOST = "51.250.26.59"
 RABBITMQ_PORT = 5672
@@ -12,9 +9,9 @@ RABBITMQ_USER = "guest"
 RABBITMQ_PASSWORD = "guest123"
 DELIVERY_QUEUE_NAME = "start_delivery_queue_savitskiy"
 STARTED_DELIVERY_QUEUE_NAME = "started_delivery_queue_savitskiy"
+COMPLETED_DELIVERY_QUEUE_NAME = "completed_delivery_queue_savitskiy"
 
-
-# Взаимодействие с очередью на назначение заказу курьера
+# Прослушивание очереди заказов для назначение заказу курьера
 
 def callback(ch, method, properties, body):
   message = json.loads(body)
@@ -40,8 +37,7 @@ def listen_queue_start_delivery():
     print("Log: Reading a message from a queue start_delivery_queue_savitskiy", flush=True)
     channel.start_consuming()
 
-
-# Взаимодействие с очередью на отправку данных курьера в таблицу заказов
+# Отправка данных курьера в очередь started_delivery_queue_savitskiy для таблицы заказов
 
 def started_delivery(message: dict):
     credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
@@ -59,8 +55,9 @@ def started_delivery(message: dict):
         )
 
     )
-    print(f"Order {message['id_order']} has been sent to RabbitMQ in the queue start_delivery_queue_savitskiy", flush=True)
+    print(f"Order {message['id_order']} has been sent to RabbitMQ in the queue started_delivery_queue_savitskiy", flush=True)
     channel.close()
+
 
 def send_changed_data_of_started_delivery(id_order, courier_id):
     message = {
@@ -69,21 +66,22 @@ def send_changed_data_of_started_delivery(id_order, courier_id):
     }
     started_delivery(message)
 
-def assign_order_to_courier(order_id):
-    db = SessionLocal()
-    try:
-        available_couriers = db.query(DeliveryMan).filter(
-            DeliveryMan.status == DeliveryManStatuses.available
-        ).all()
+# Прослушивание очереди выполненных заказов для освобождения курьера из рабства(временно)
 
-        if not available_couriers:
-            print(f"No available couriers for order {order_id}", flush=True)
-            return None
-        selected_courier = random.choice(available_couriers)
-        selected_courier.status = DeliveryManStatuses.busy
-        db.commit()
-        print(f"Assigned order {order_id} to courier {selected_courier.fio_courier} (ID: {selected_courier.courier_id})", flush=True)
+def callback_completed_delivery(ch, method, properties, body):
+  message = json.loads(body)
+  courier_id = message["courier_id"]
+  print(f"Received ID of courier - {courier_id}")
+  free_courier(courier_id)
 
-        return selected_courier.courier_id
-    finally:
-        db.close()
+def listen_queue_completed_delivery():
+    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
+    connection = pika.BlockingConnection(pika.ConnectionParameters(
+        host=RABBITMQ_HOST, port=RABBITMQ_PORT, credentials=credentials))
+    channel = connection.channel()
+    channel.queue_declare(COMPLETED_DELIVERY_QUEUE_NAME, durable=True)
+    channel.basic_consume(
+        queue=COMPLETED_DELIVERY_QUEUE_NAME, on_message_callback=callback_completed_delivery, auto_ack=True
+    )
+    print("Log: Reading a message from a queue completed_delivery_queue_savitskiy", flush=True)
+    channel.start_consuming()

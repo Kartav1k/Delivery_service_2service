@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from datetime import datetime
 from database import engine, SessionLocal
-from rabbitmq import send_delivery, listen_queue_started_delivery
+from rabbitmq import send_delivery, listen_queue_started_delivery, completed_delivery
 from schemas import DeliveryCreate
 from models import Orders, DeliveryStatuses, get_datetime_now, Base
 
@@ -50,15 +50,6 @@ async def get_delivery(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Заказ не найден")
     return delivery
 
-"""@app.patch("/creating_delivery/{id}/accept")
-async def accept_delivery(id: int, db: Session = Depends(get_db)):
-    delivery = db.query(Orders).filter(Orders.id_order == id).first()
-    if not delivery:
-        raise HTTPException(status_code=404, detail="Заказ не найден")
-    delivery.status = DeliveryStatuses.accepted
-    db.commit()
-    return delivery
-"""
 @app.patch("/creating_delivery/{id}/start")
 async def start_delivery(id: int, db: Session = Depends(get_db)):
     delivery = db.query(Orders).filter(Orders.id_order == id).first()
@@ -77,6 +68,8 @@ async def complete_delivery(id: int, db: Session = Depends(get_db)):
     delivery.status = DeliveryStatuses.completed
     delivery.end_time = datetime.now()
     db.commit()
+    if delivery.courier_id:
+        completed_delivery(delivery.courier_id)
     return delivery
 
 @app.patch("/creating_delivery/{id}/cancel")
@@ -89,4 +82,6 @@ async def cancel_delivery(id: int, db: Session = Depends(get_db)):
     delivery.status = DeliveryStatuses.canceled
     delivery.end_time = datetime.now()
     db.commit()
+    if delivery.courier_id:
+        completed_delivery(delivery.courier_id)
     return delivery

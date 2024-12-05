@@ -16,7 +16,6 @@ COMPLETED_DELIVERY_QUEUE_NAME = "completed_delivery_queue_savitskiy"
 def callback(ch, method, properties, body):
   message = json.loads(body)
   id_order = message["id_order"]
-  print(f"Received order - {id_order}")
   courier_id = assign_order_to_courier(id_order)
   if courier_id:
       print(f"Order {id_order} assigned to courier {courier_id}", flush=True)
@@ -71,7 +70,7 @@ def send_changed_data_of_started_delivery(id_order, courier_id):
 def callback_completed_delivery(ch, method, properties, body):
   message = json.loads(body)
   courier_id = message["courier_id"]
-  print(f"Received ID of courier - {courier_id}")
+  #print(f"Received ID of courier - {courier_id}")
   free_courier(courier_id)
 
 def listen_queue_completed_delivery():

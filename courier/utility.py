@@ -20,9 +20,7 @@ def assign_order_to_courier(order_id, max_retries=60, retry_interval=5):
                 selected_courier = random.choice(available_couriers)
                 selected_courier.status = DeliveryManStatuses.busy
                 db.commit()
-                print(
-                    f"Assigned order {order_id} to courier {selected_courier.fio_courier} (ID: {selected_courier.courier_id})",
-                    flush=True)
+                print(f"Assigned order {order_id} to courier {selected_courier.fio_courier} (ID: {selected_courier.courier_id})",flush=True)
                 return selected_courier.courier_id
 
             print(f"No available couriers for order {order_id}. Retrying in {retry_interval} seconds...", flush=True)
@@ -55,7 +53,7 @@ def free_courier(courier_id):
         if courier:
             courier.status = DeliveryManStatuses.available
             db.commit()
-            print(f"Courier {courier_id} status updated to 'available'.", flush=True)
+            print(f"Status of courier {courier_id} updated to 'available'.", flush=True)
         else:
             print(f"Courier {courier_id} not found.", flush=True)
     finally:

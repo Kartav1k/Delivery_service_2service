@@ -18,9 +18,9 @@ def callback(ch, method, properties, body):
   print(f"Received order - {id_order}")
   courier_id = assign_order_to_courier(id_order)
   if courier_id:
-      print(f"Order {id_order} assigned to courier {courier_id}")
+      print(f"Order {id_order} assigned to courier {courier_id}", flush=True)
   else:
-      print(f"Failed to assign courier for order {id_order}")
+      print(f"Failed to assign courier for order {id_order}", flush=True)
 
 def listen_queue_start_delivery():
     credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
@@ -31,7 +31,7 @@ def listen_queue_start_delivery():
     channel.basic_consume(
         queue=DELIVERY_QUEUE_NAME, on_message_callback=callback, auto_ack=True
     )
-    print("Log: Reading a message from a queue start_delivery_queue_savitskiy")
+    print("Log: Reading a message from a queue start_delivery_queue_savitskiy", flush=True)
     channel.start_consuming()
 
 
@@ -43,13 +43,12 @@ def assign_order_to_courier(order_id):
         ).all()
 
         if not available_couriers:
-            print(f"No available couriers for order {order_id}")
+            print(f"No available couriers for order {order_id}", flush=True)
             return None
         selected_courier = random.choice(available_couriers)
         selected_courier.status = DeliveryManStatuses.busy
         db.commit()
-        print(
-            f"Assigned order {order_id} to courier {selected_courier.fio_courier} (ID: {selected_courier.courier_id})")
+        print(f"Assigned order {order_id} to courier {selected_courier.fio_courier} (ID: {selected_courier.courier_id})", flush=True)
 
         return selected_courier.courier_id
     finally:

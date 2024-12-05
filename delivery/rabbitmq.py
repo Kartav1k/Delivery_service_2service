@@ -1,5 +1,4 @@
 import json
-
 import pika
 
 RABBITMQ_HOST="51.250.26.59"
@@ -24,7 +23,7 @@ def publish_delivery(message: dict):
         )
 
     )
-    print(f"Order {message['id_order']} has been sent to RabbitMQ in the queue start_delivery_queue_savitskiy")
+    print(f"Order {message['id_order']} has been sent to RabbitMQ in the queue start_delivery_queue_savitskiy", flush=True)
     channel.close()
 
 def send_delivery(delivery_data):

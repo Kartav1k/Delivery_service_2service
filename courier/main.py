@@ -1,12 +1,9 @@
 import threading
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
-
 from rabbitmq import listen_queue_start_delivery
 from models_courier import DeliveryMan, DeliveryManStatuses, Base
 from database_courier import SessionLocal, engine
-import pika
-import json
 
 app = FastAPI()
 
@@ -33,55 +30,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-'''def get_rabbitmq_connection():
-    return pika.BlockingConnection(pika.ConnectionParameters(
-        host='51.250.26.59',
-        port=5672,
-        credentials=pika.PlainCredentials('guest', 'guest123')
-    ))'''
-
-'''def on_order_created(ch, method, properties, body):
-    message = json.loads(body)
-    order_id = message["order_id"]
-    print(f"Получен заказ {order_id}")
-    db = SessionLocal()
-    courier = db.query(DeliveryMan).filter(DeliveryMan.status == DeliveryManStatuses.available).first()
-
-    if courier:
-        courier.status = DeliveryManStatuses.busy
-        db.commit()
-        send_courier_assigned_message(order_id, courier.courier_id)
-
-        db.close()
-    else:
-        print("Нет доступных курьеров :(")'''
-
-'''def send_courier_assigned_message(order_id: int, courier_id: int):
-    connection = get_rabbitmq_connection()
-    channel = connection.channel()
-    channel.queue_declare(queue='courier_assigned', durable=True)
-    message = json.dumps({"order_id": order_id, "courier_id": courier_id})
-    channel.basic_publish(
-        exchange='',
-        routing_key='courier_assigned',
-        body=message,
-        properties=pika.BasicProperties(
-            delivery_mode=2,
-        )
-    )
-    print(f"Курьер {courier_id} принял заказ {order_id}.")
-    connection.close()
-
-def start_listening():
-    connection = get_rabbitmq_connection()
-    channel = connection.channel()
-    channel.queue_declare(queue='savitskiy_order_created', durable=True)
-    channel.basic_qos(prefetch_count=1)
-    channel.basic_consume(queue='savitskiy_order_created', on_message_callback=on_order_created)
-
-    print("Ожидание заказов...")
-    channel.start_consuming()'''
 
 @app.on_event("startup")
 async def startup_event():

@@ -11,6 +11,10 @@ RABBITMQ_PORT = 5672
 RABBITMQ_USER = "guest"
 RABBITMQ_PASSWORD = "guest123"
 DELIVERY_QUEUE_NAME = "start_delivery_queue_savitskiy"
+STARTED_DELIVERY_QUEUE_NAME = "started_delivery_queue_savitskiy"
+
+
+# Взаимодействие с очередью на назначение заказу курьера
 
 def callback(ch, method, properties, body):
   message = json.loads(body)
@@ -19,8 +23,10 @@ def callback(ch, method, properties, body):
   courier_id = assign_order_to_courier(id_order)
   if courier_id:
       print(f"Order {id_order} assigned to courier {courier_id}", flush=True)
+      send_changed_data_of_started_delivery(id_order, courier_id)
+
   else:
-      print(f"Failed to assign courier for order {id_order}", flush=True)
+      print(f"There are no couriers available to order {id_order}", flush=True)
 
 def listen_queue_start_delivery():
     credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
@@ -34,6 +40,34 @@ def listen_queue_start_delivery():
     print("Log: Reading a message from a queue start_delivery_queue_savitskiy", flush=True)
     channel.start_consuming()
 
+
+# Взаимодействие с очередью на отправку данных курьера в таблицу заказов
+
+def started_delivery(message: dict):
+    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
+    connection = pika.BlockingConnection(pika.ConnectionParameters(
+        host=RABBITMQ_HOST, port=RABBITMQ_PORT, credentials=credentials
+    ))
+    channel = connection.channel()
+    channel.queue_declare(STARTED_DELIVERY_QUEUE_NAME, durable=True)
+    channel.basic_publish(
+        exchange='',
+        routing_key=STARTED_DELIVERY_QUEUE_NAME,
+        body=json.dumps(message),
+        properties=pika.BasicProperties(
+            delivery_mode=2
+        )
+
+    )
+    print(f"Order {message['id_order']} has been sent to RabbitMQ in the queue start_delivery_queue_savitskiy", flush=True)
+    channel.close()
+
+def send_changed_data_of_started_delivery(id_order, courier_id):
+    message = {
+        "id_order": id_order,
+        "courier_id": courier_id,
+    }
+    started_delivery(message)
 
 def assign_order_to_courier(order_id):
     db = SessionLocal()

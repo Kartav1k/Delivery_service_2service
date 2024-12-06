@@ -1,26 +1,16 @@
 import threading
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-from utility import initialize_delivery_man
+from database_courier import engine
+from utility_courier import initialize_delivery_man
 from rabbitmq import listen_queue_start_delivery, listen_queue_completed_delivery
-from models_courier import DeliveryMan, DeliveryManStatuses, Base
-from database_courier import SessionLocal, engine
+from models_courier import DeliveryMan, DeliveryManStatuses
+
 
 app = FastAPI()
 
-Base.metadata.drop_all(bind=engine)
-Base.metadata.create_all(bind=engine)
-
-
-initialize_delivery_man(SessionLocal())
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+initialize_delivery_man()
 
 @app.on_event("startup")
 async def startup_event():
@@ -30,41 +20,45 @@ async def startup_event():
     listener_thread_for_completed_delivery.start()
 
 @app.get("/couriers")
-async def get_couriers(db: Session = Depends(get_db)):
-    couriers = db.query(DeliveryMan).all()
-    return couriers
+async def get_couriers():
+    with Session(engine) as db:
+        couriers = db.query(DeliveryMan).all()
+        return couriers
 
 @app.get("/courier/{id}")
-async def get_courier(id: int, db: Session = Depends(get_db)):
-    courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
-    if not courier:
-        raise HTTPException(status_code=404, detail="Courier was not found")
-    return courier
+async def get_courier(id: int):
+    with Session(engine) as db:
+        courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
+        if not courier:
+            raise HTTPException(status_code=404, detail="Courier was not found")
+        return courier
 
 @app.patch("/courier/{id}/activate")
-async def activate_courier(id: int, db: Session = Depends(get_db)):
-    courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
-    if not courier:
-        raise HTTPException(status_code=404, detail="Courier was not found")
-    if courier.status == DeliveryManStatuses.busy or courier.status == DeliveryManStatuses.available:
-        raise HTTPException(
-            status_code=400,
-            detail="You can't start a shift, you're already working"
-        )
-    courier.status = DeliveryManStatuses.available
-    db.commit()
-    return {"message": f"Courier {id} is ready to work hard"}
+async def activate_courier(id: int):
+    with Session(engine) as db:
+        courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
+        if not courier:
+            raise HTTPException(status_code=404, detail="Courier was not found")
+        if courier.status in {DeliveryManStatuses.busy, DeliveryManStatuses.available}:
+            raise HTTPException(
+                status_code=400,
+                detail="You can't start a shift, you're already working"
+            )
+        courier.status = DeliveryManStatuses.available
+        db.commit()
+        return {"message": f"Courier {id} is ready to work hard"}
 
 @app.patch("/courier/{id}/deactivate")
-async def deactivate_courier(id: int, db: Session = Depends(get_db)):
-    courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
-    if not courier:
-        raise HTTPException(status_code=404, detail="Courier was not found")
-    if courier.status == DeliveryManStatuses.busy:
-        raise HTTPException(
-            status_code=400,
-            detail="You can't finish your shift until you complete the order!"
-        )
-    courier.is_active = False
-    db.commit()
-    return {"message": f"Courier {id} has finished his shift"}
+async def deactivate_courier(id: int):
+    with Session(engine) as db:
+        courier = db.query(DeliveryMan).filter(DeliveryMan.courier_id == id).first()
+        if not courier:
+            raise HTTPException(status_code=404, detail="Courier was not found")
+        if courier.status == DeliveryManStatuses.busy:
+            raise HTTPException(
+                status_code=400,
+                detail="You can't finish your shift until you complete the order!"
+            )
+        courier.status = DeliveryManStatuses.not_working
+        db.commit()
+        return {"message": f"Courier {id} has finished his shift"}

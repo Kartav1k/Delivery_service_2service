@@ -1,10 +1,10 @@
 from sqlalchemy import Column, Integer, String, Enum
 from enum import Enum as PyEnum
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from database_courier import engine
+from sqlalchemy.orm import  DeclarativeBase
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 class DeliveryManStatuses(PyEnum):
     available = "available"
@@ -17,5 +17,3 @@ class DeliveryMan(Base):
     courier_id = Column(Integer, primary_key=True, autoincrement=True)
     fio_courier = Column(String, nullable=False)
     status = Column(Enum(DeliveryManStatuses), default=DeliveryManStatuses.not_working)
-
-SessionLocal = sessionmaker(bind=engine)

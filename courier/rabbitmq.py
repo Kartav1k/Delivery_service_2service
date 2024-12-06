@@ -1,7 +1,7 @@
 import json
 import pika
 
-from utility import assign_order_to_courier, free_courier
+from utility_courier import assign_order_to_courier, free_courier
 
 RABBITMQ_HOST = "51.250.26.59"
 RABBITMQ_PORT = 5672

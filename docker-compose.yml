@@ -1,36 +1,8 @@
 version: '3.8'
 
 services:
-  order-service:
-    build:
-      context: ./delivery
-    ports:
-      - "8001:8001"
-    environment:
-      - DATABASE_URL=postgresql://postgres:123456@order-db:5432/orders_delivery
-      - RABBITMQ_URL=amqp://51.250.26.59:5672
-    depends_on:
-      order-db:
-        condition: service_healthy
-    networks:
-      - backend
-
-  courier-service:
-    build:
-      context: ./courier
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:123456@courier-db:5432/courier_service
-      - RABBITMQ_URL=amqp://51.250.26.59:5672
-    depends_on:
-      courier-db:
-        condition: service_healthy
-    networks:
-      - backend
-
-  order-db:
-    container_name: order-db
+  delivery-db:
+    container_name: delivery-db
     image: postgres:13
     environment:
       POSTGRES_USER: postgres
@@ -38,16 +10,9 @@ services:
       POSTGRES_DB: orders_delivery
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
-      - order-db-data:/var/lib/postgresql/data
-    networks:
-      - backend
+      - delivery-db-data:/var/lib/postgresql/data
     ports:
       - "5434:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 10s
-      retries: 5
-      start_period: 5s
 
   courier-db:
     container_name: courier-db
@@ -59,22 +24,34 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - courier-db-data:/var/lib/postgresql/data
-    networks:
-      - backend
     ports:
       - "5433:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 10s
-      retries: 5
-      start_period: 5s
 
-networks:
-  backend:
-    driver: bridge
+
+  delivery-service:
+    build:
+      context: ./delivery
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:123456@delivery-db:5432/orders_delivery
+      - RABBITMQ_URL=amqp://51.250.26.59:5672
+    depends_on:
+      - delivery-db
+
+  courier-service:
+    build:
+      context: ./courier
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:123456@courier-db:5432/courier_service
+      - RABBITMQ_URL=amqp://51.250.26.59:5672
+    depends_on:
+      - courier-db
 
 volumes:
-  order-db-data:
+  delivery-db-data:
     driver: local
   courier-db-data:
     driver: local

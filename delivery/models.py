@@ -1,10 +1,11 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Boolean
-from sqlalchemy.ext.declarative import declarative_base
 from enum import Enum as PyEnum
+from sqlalchemy.orm import DeclarativeBase
 
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 class DeliveryStatuses(PyEnum):
     created = "created"

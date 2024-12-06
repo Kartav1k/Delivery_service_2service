@@ -4,4 +4,3 @@ pydantic
 sqlalchemy
 psycopg2-binary
 pika
-aio_pika
